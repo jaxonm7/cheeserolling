@@ -1,1 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cheese Rolling - The Game</title>
+    <style>
+        body {
+            margin: 0;
+            background: #fdf5e6;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        canvas {
+            display: block;
+            background: #7cfc00; /* Grass green */
+            border-bottom: 10px solid #8b4513; /* Dirt */
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            cursor: none;
+        }
+        .ui {
+            position: absolute;
+            top: 20px;
+            text-align: center;
+            pointer-events: none;
+        }
+        h1 { color: #d2691e; margin: 0; text-shadow: 2px 2px #fff; }
+        .score { font-size: 24px; font-weight: bold; color: #333; }
+    </style>
+</head>
+<body>
 
+    <div class="ui">
+        <h1>CHEESE ROLLING</h1>
+        <div class="score" id="scoreBoard">Score: 0</div>
+        <p>Use <b>Left/Right Arrows</b> or <b>Mouse</b> to avoid the rocks!</p>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreBoard = document.getElementById('scoreBoard');
+
+        // Game Settings
+        canvas.width = window.innerWidth > 600 ? 600 : window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let score = 0;
+        let gameActive = true;
+        let obstacles = [];
+        let frame = 0;
+
+        const player = {
+            x: canvas.width / 2,
+            y: canvas.height - 100,
+            radius: 25,
+            color: '#ffcc00', // Cheese yellow
+            speed: 7,
+            rotation: 0
+        };
+
+        // Input Handling
+        let keys = {};
+        window.addEventListener('keydown', e => keys[e.code] = true);
+        window.addEventListener('keyup', e => keys[e.code] = false);
+        window.addEventListener('mousemove', e => {
+            player.x = e.clientX - canvas.offsetLeft;
+        });
+
+        class Obstacle {
+            constructor() {
+                this.radius = 20 + Math.random() * 30;
+                this.x = Math.random() * canvas.width;
+                this.y = -50;
+                this.speed = 3 + (score / 500);
+            }
+            update() {
+                this.y += this.speed;
+            }
+            draw() {
+                ctx.fillStyle = '#666';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                // Rock details
+                ctx.strokeStyle = '#444';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+            }
+        }
+
+        function spawnObstacles() {
+            if (frame % 60 === 0) {
+                obstacles.push(new Obstacle());
+            }
+        }
+
+        function checkCollision(p, o) {
+            let dx = p.x - o.x;
+            let dy = p.y - o.y;
+            let distance = Math.sqrt(dx * dx + dy * dy);
+            return distance < p.radius + o.radius;
+        }
+
+        function update() {
+            if (!gameActive) return;
+
+            frame++;
+            score++;
+            scoreBoard.innerText = `Score: ${Math.floor(score / 10)}`;
+
+            // Movement
+            if (keys['ArrowLeft'] && player.x > player.radius) player.x -= player.speed;
+            if (keys['ArrowRight'] && player.x < canvas.width - player.radius) player.x += player.speed;
+
+            player.rotation += 0.2;
+
+            spawnObstacles();
+
+            obstacles.forEach((obs, index) => {
+                obs.update();
+                if (checkCollision(player, obs)) {
+                    gameActive = false;
+                    alert("Game Over! Your cheese was crushed. \nFinal Score: " + Math.floor(score / 10));
+                    location.reload();
+                }
+                // Remove off-screen obstacles
+                if (obs.y > canvas.height + 50) obstacles.splice(index, 1);
+            });
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Road/Hill
+            ctx.fillStyle = '#6bb12d';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Cheese
+            ctx.save();
+            ctx.translate(player.x, player.y);
+            ctx.rotate(player.rotation);
+            ctx.fillStyle = player.color;
+            ctx.beginPath();
+            ctx.arc(0, 0, player.radius, 0, Math.PI * 2);
+            ctx.fill();
+            // Cheese holes
+            ctx.fillStyle = '#e6b800';
+            ctx.beginPath(); ctx.arc(10, 5, 5, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(-8, -10, 4, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+
+            // Draw Obstacles
+            obstacles.forEach(obs => obs.draw());
+
+            requestAnimationFrame(() => {
+                update();
+                draw();
+            });
+        }
+
+        draw();
+    </script>
+</body>
+</html>
